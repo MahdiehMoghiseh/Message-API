@@ -6,6 +6,7 @@ import (
 	"fiber-mongo-api/configs"
 	"fiber-mongo-api/models"
 	"log"
+	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"go.mongodb.org/mongo-driver/bson"
@@ -13,6 +14,16 @@ import (
 )
 
 func Get_message(c *fiber.Ctx) error {
+
+	cacheKey := "messages"
+
+	cacheData, err := configs.GetFromCache(cacheKey)
+	if err == nil {
+		c.Send(cacheData)
+		log.Println("get from cache !!")
+		return nil
+	}
+
 	collection, err := configs.GetMongoDbCollection(configs.DbName, configs.CollectionName)
 	if err != nil {
 		c.Status(500).Send(nil)
@@ -45,8 +56,15 @@ func Get_message(c *fiber.Ctx) error {
 		return err
 	}
 
-	json, _ := json.Marshal(results)
-	c.Send(json)
+	jsonData, _ := json.Marshal(results)
+
+	err = configs.SetToCache(cacheKey, jsonData, 5*time.Minute)
+	log.Println("set to cache !!")
+	if err != nil {
+		log.Println("Failed to set data in cache:", err)
+	}
+
+	c.Send(jsonData)
 
 	return nil
 }
